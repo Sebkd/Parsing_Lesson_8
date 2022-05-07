@@ -14,7 +14,7 @@ class InstaspiderSpider(scrapy.Spider):
     inst_login_link = 'https://www.instagram.com/accounts/login/ajax/'
     inst_login = setting_instagram.LOGIN_INSTAGRAM
     inst_pwd = setting_instagram.PASS_INSTAGRAM
-    inst_parse_user = setting_instagram.INSTAGRAM_PARSE_USER
+    inst_parse_users = setting_instagram.INSTAGRAM_PARSE_USERS
 
     def parse(self, response: HtmlResponse):
         csrf = self.fetch_csrf_token(response.text)
@@ -35,12 +35,13 @@ class InstaspiderSpider(scrapy.Spider):
         json_body = response.json()
         if json_body['authenticated']:
             # здесь можно сделать цикл из пользователей которых парсим
-            yield response.follow(f'/{self.inst_parse_user}/',
-                                  callback=self.parse_inst_user,
-                                  cb_kwargs={
-                                      'username': self.inst_parse_user
-                                  },
-                                  )
+            for user in self.inst_parse_users:
+                yield response.follow(f'/{user}/',
+                                      callback=self.parse_inst_user,
+                                      cb_kwargs={
+                                          'username': user
+                                      },
+                                      )
 
     @staticmethod
     def fetch_csrf_token(text):
