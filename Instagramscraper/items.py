@@ -13,4 +13,3 @@ class InstagramscraperItem(scrapy.Item):
     photo = scrapy.Field()
     likes = scrapy.Field()
     post_data = scrapy.Field()
-    pass
