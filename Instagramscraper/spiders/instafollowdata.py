@@ -22,6 +22,10 @@ class InstafollowdataSpider(scrapy.Spider):
     query_hash = setting_instagram.QUERY_HASH
     first_attr = setting_instagram.FIRST_ATTR
 
+    friendship_link = setting_instagram.FRIENDSHIP_LINK
+    followers_link = setting_instagram.FOLLOWERS_LINK
+    followings_link = setting_instagram.FOLLOWINGS_LINK
+
     def parse(self, response: HtmlResponse):
         # логинимся
         csrf = self.fetch_csrf_token(response.text)
@@ -64,17 +68,19 @@ class InstafollowdataSpider(scrapy.Spider):
         return match.replace(r'profilePage_', '').replace(r'"', '')
 
     def parse_inst_user(self, response: HtmlResponse, username):
-        '''Заходим на страницу пользователей'''
+        print()
+        '''Заходим на страницу пользователей и вызываем фолловеров'''
         user_id = self.fetch_id_parse_user(response.text) # узнаем id пользователя
 
         variables = {
-            'id': user_id,
-            'first': self.first_attr
+            'count': self.first_attr,
+            'search_surface': 'follow_list_page'
         }
-        url_posts = f'{self.graphql_url}query_hash={self.query_hash}&{urlencode(variables)}'
-
+        url_followers = f'{self.friendship_link}{user_id}{self.followers_link}?{urlencode(variables)}'
+        url_followers = f'{self.friendship_link}{user_id}{self.followers_link}?{urlencode(variables)}'
+        print()
         yield response.follow(
-            url_posts,
+            url_followers,
             callback=self.parse_user_followers,
             cb_kwargs={
                 'username': username,
