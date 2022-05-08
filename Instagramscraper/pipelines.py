@@ -11,3 +11,7 @@ from itemadapter import ItemAdapter
 class InstagramscraperPipeline:
     def process_item(self, item, spider):
         return item
+
+class InstagramscraperfollowdataPipeline:
+    def process_item(self, item, spider):
+        return item

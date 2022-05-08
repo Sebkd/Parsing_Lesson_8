@@ -4,6 +4,7 @@ from scrapy.utils.log import configure_logging
 from twisted.internet import reactor
 
 from Instagramscraper import settings
+from Instagramscraper.spiders.instafollowdata import InstafollowdataSpider
 from Instagramscraper.spiders.instaspider import InstaspiderSpider
 
 if __name__ == '__main__':  # ctrl+j main
@@ -15,7 +16,8 @@ if __name__ == '__main__':  # ctrl+j main
 
     runner = CrawlerRunner(settings=crawler_settings)
 
-    runner.crawl(InstaspiderSpider)
+    # runner.crawl(InstaspiderSpider)
+    runner.crawl(InstafollowdataSpider)
 
 
     d = runner.join()

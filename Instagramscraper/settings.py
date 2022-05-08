@@ -66,7 +66,8 @@ COOKIES_ENABLED = True
 # Configure item pipelines
 # See https://docs.scrapy.org/en/latest/topics/item-pipeline.html
 ITEM_PIPELINES = {
-   'Instagramscraper.pipelines.InstagramscraperPipeline': 300,
+   'Instagramscraper.pipelines.InstagramscraperPipeline': 400,
+   'Instagramscraper.pipelines.InstagramscraperfollowdataPipeline': 300,
    # 'Instagramscraper.pipelines.InstaImagesPipeline': 200,
 }
 

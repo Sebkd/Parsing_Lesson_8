@@ -1,20 +1,18 @@
-import json
 import re
-
+from copy import deepcopy
 from urllib.parse import urlencode
+
 import scrapy
 from scrapy.http import HtmlResponse
-from copy import deepcopy
 
 import setting_instagram
 import setting_instagram_secret
-from Instagramscraper.items import InstagramscraperItem
 
 
-class InstaspiderSpider(scrapy.Spider):
-    name = 'instaspider'
+class InstafollowdataSpider(scrapy.Spider):
+    name = 'instafollowdata'
     allowed_domains = ['instagram.com']
-    start_urls = ['https://www.instagram.com']
+    start_urls = ['http://instagram.com/']
 
     inst_login_link = 'https://www.instagram.com/accounts/login/ajax/'
     inst_login = setting_instagram_secret.LOGIN_INSTAGRAM
@@ -25,6 +23,7 @@ class InstaspiderSpider(scrapy.Spider):
     first_attr = setting_instagram.FIRST_ATTR
 
     def parse(self, response: HtmlResponse):
+        # логинимся
         csrf = self.fetch_csrf_token(response.text)
         yield scrapy.FormRequest(
             self.inst_login_link,
@@ -40,6 +39,7 @@ class InstaspiderSpider(scrapy.Spider):
         )
 
     def login(self, response: HtmlResponse):
+        '''проходим по циклу список пользователей, у которых нужно собрать фоловверов '''
         json_body = response.json()
         if json_body['authenticated']:
             # здесь можно сделать цикл из пользователей которых парсим
@@ -63,20 +63,9 @@ class InstaspiderSpider(scrapy.Spider):
         match = re.search('\"profilePage_\\w+\"', text).group()
         return match.replace(r'profilePage_', '').replace(r'"', '')
 
-    def fetch_user_id(self, text, username):
-        """Получение id пользователя, которого парсят из кода HTML страницы
-         (вариант преподавателя)"""
-        try:
-            match = re.search(
-                '{\"id\":\"\\d+\",\"username\":\"%s\"}' % username, text
-            ).group()
-            return json.loads(match).get('id')
-        except:
-            return re.findall('\"id\":\"\\d+\"', text)[-1].split('"')[-2]
-
     def parse_inst_user(self, response: HtmlResponse, username):
-        user_id = self.fetch_id_parse_user(response.text)
-        user_id_variant_teacher = self.fetch_user_id(response.text, username=username)
+        '''Заходим на страницу пользователей'''
+        user_id = self.fetch_id_parse_user(response.text) # узнаем id пользователя
 
         variables = {
             'id': user_id,
@@ -86,7 +75,7 @@ class InstaspiderSpider(scrapy.Spider):
 
         yield response.follow(
             url_posts,
-            callback=self.parse_user_posts,
+            callback=self.parse_user_followers,
             cb_kwargs={
                 'username': username,
                 'user_id': user_id,
@@ -94,34 +83,6 @@ class InstaspiderSpider(scrapy.Spider):
             },
         )
 
-    def parse_user_posts(self, response: HtmlResponse, username, user_id, variables):
-
-        json_data = response.json()
-        page_info = json_data.get('data').get('user').get('edge_owner_to_timeline_media').get('page_info')
-
-        if page_info['has_next_page']:
-            variables['after'] = page_info['end_cursor']
-
-            url_posts = f'{self.graphql_url}query_hash={self.query_hash}&{urlencode(variables)}'
-
-            yield response.follow(
-                url_posts,
-                callback=self.parse_user_posts,
-                cb_kwargs={
-                    'username': username,
-                    'user_id': user_id,
-                    'variables': deepcopy(variables)
-                },
-            )
-
-        posts = json_data.get('data').get('user').get('edge_owner_to_timeline_media').get('edges')
-        for post in posts:
-            item = InstagramscraperItem(
-                user_id=user_id,
-                username=username,
-                photo=post.get('node').get('display_url'),
-                likes=post.get('node').get('edge_media_preview_like').get('count'),
-                post_data=post.get('node')
-            )
-            print()
-            yield item
+    def parse_user_followers(self, response: HtmlResponse, username, user_id, variables):
+        print()
+        pass
