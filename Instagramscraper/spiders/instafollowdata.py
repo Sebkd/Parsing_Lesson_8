@@ -97,10 +97,10 @@ class InstafollowdataSpider(scrapy.Spider):
     def parse_user_followers(self, response: HtmlResponse, username, user_id, variables):
 
         json_data = response.json()
-        if json_data['next_max_id'] and int(json_data['next_max_id']) > variables['max_id']:
-            variables['max_id'] = json_data['next_max_id']
+        if json_data['next_max_id']\
+                and variables['max_id'] < int(json_data['next_max_id']) < 30:
+            variables['max_id'] = int(json_data['next_max_id'])
             url_followers = f'{self.friendship_link}{user_id}{self.followers_link}?{urlencode(variables)}'
-            print()
             yield response.follow(
                 url=url_followers,
                 callback=self.parse_user_followers,
@@ -121,9 +121,8 @@ class InstafollowdataSpider(scrapy.Spider):
                 username=follower.get('username'),
                 follower_cursor=username,
                 following_cursor='',
-                profile_pic=follower.get('profile_pic_url'),
+                profile_pic=[follower.get('profile_pic_url')],
                 post_data=follower,
             )
-            print()
             yield item
 

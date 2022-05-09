@@ -21,7 +21,7 @@ class InstafollowdataPipeline:
         # systemctl start mongod.service
         # systemctl status mongod.service
         client = MongoClient('localhost', 27017)
-        self.mongobase = client.shopparser
+        self.mongobase = client.instafollow
 
     def process_item(self, item, spider):
         collection = self.mongobase[spider.name]
@@ -39,4 +39,5 @@ class InstafollowdataImagesPipeline(ImagesPipeline):
 
     def item_completed(self, results, item, info):
         item['profile_pic'] = [el[1] for el in results if el[0]]
+        print()
         return item

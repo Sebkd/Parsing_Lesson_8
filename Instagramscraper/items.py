@@ -16,6 +16,7 @@ class InstagramscraperItem(scrapy.Item):
 
 class InstafollowdataItem(scrapy.Item):
     # define the fields for your item here like:
+    _id = scrapy.Field()
     user_id = scrapy.Field()
     username = scrapy.Field()
     follower_cursor = scrapy.Field()
