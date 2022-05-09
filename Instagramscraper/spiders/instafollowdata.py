@@ -7,6 +7,7 @@ from scrapy.http import HtmlResponse
 
 import setting_instagram
 import setting_instagram_secret
+from Instagramscraper.items import InstafollowdataItem
 
 
 class InstafollowdataSpider(scrapy.Spider):
@@ -21,6 +22,7 @@ class InstafollowdataSpider(scrapy.Spider):
     graphql_url = setting_instagram.GRAPHQL_URL
     query_hash = setting_instagram.QUERY_HASH
     first_attr = setting_instagram.FIRST_ATTR
+    count = setting_instagram.COUNT
 
     friendship_link = setting_instagram.FRIENDSHIP_LINK
     followers_link = setting_instagram.FOLLOWERS_LINK
@@ -70,25 +72,58 @@ class InstafollowdataSpider(scrapy.Spider):
     def parse_inst_user(self, response: HtmlResponse, username):
         print()
         '''Заходим на страницу пользователей и вызываем фолловеров'''
-        user_id = self.fetch_id_parse_user(response.text) # узнаем id пользователя
+        user_id = self.fetch_id_parse_user(response.text)  # узнаем id пользователя
 
         variables = {
             'count': self.first_attr,
-            'search_surface': 'follow_list_page'
+            'search_surface': 'follow_list_page',
+            'max_id': 0,
         }
         url_followers = f'{self.friendship_link}{user_id}{self.followers_link}?{urlencode(variables)}'
-        url_followers = f'{self.friendship_link}{user_id}{self.followers_link}?{urlencode(variables)}'
-        print()
+
         yield response.follow(
-            url_followers,
+            url=url_followers,
             callback=self.parse_user_followers,
             cb_kwargs={
                 'username': username,
+                'variables': deepcopy(variables),
                 'user_id': user_id,
-                'variables': deepcopy(variables)
+            },
+            headers={
+                'User-Agent': 'Instagram 155.0.0.37.107',
             },
         )
 
     def parse_user_followers(self, response: HtmlResponse, username, user_id, variables):
-        print()
-        pass
+
+        json_data = response.json()
+        if json_data['next_max_id'] and int(json_data['next_max_id']) > variables['max_id']:
+            variables['max_id'] = json_data['next_max_id']
+            url_followers = f'{self.friendship_link}{user_id}{self.followers_link}?{urlencode(variables)}'
+            print()
+            yield response.follow(
+                url=url_followers,
+                callback=self.parse_user_followers,
+                cb_kwargs={
+                    'username': username,
+                    'variables': deepcopy(variables),
+                    'user_id': user_id,
+                },
+                headers={
+                    'User-Agent': 'Instagram 155.0.0.37.107',
+                },
+            )
+
+        followers = json_data.get('users')
+        for follower in followers:
+            item = InstafollowdataItem(
+                user_id=follower.get('pk'),
+                username=follower.get('username'),
+                follower_cursor=username,
+                following_cursor='',
+                profile_pic=follower.get('profile_pic_url'),
+                post_data=follower,
+            )
+            print()
+            yield item
+
