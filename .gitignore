@@ -122,3 +122,9 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Custom
+/setting_instagram_secret.py
+/HW/setting_instagram_secret.py
+/2.txt
+/Instagramscraper/profile_pic/
