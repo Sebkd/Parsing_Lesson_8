@@ -32,14 +32,14 @@ class InstafollowdataPipeline:
 
 class InstafollowdataImagesPipeline(ImagesPipeline):
     def get_media_requests(self, item, info):
+        # для работы необходима библиотека pillow
         if item['profile_pic']:
-            for img in item['profile_pic']:
-                try:
-                    yield scrapy.Request(img)
-                except Exception as error:
-                    print(error)
+            try:
+                yield scrapy.Request(item.get('profile_pic'))
+            except Exception as error:
+                print(error)
+
 
     def item_completed(self, results, item, info):
         item['profile_pic'] = [el[1] for el in results if el[0]]
-        print()
         return item
