@@ -1,3 +1,6 @@
+"""
+Модуль парсинга данных: ввод данных в item без предварительной обработки
+"""
 import re
 from copy import deepcopy
 from urllib.parse import urlencode
@@ -7,10 +10,14 @@ from scrapy.http import HtmlResponse
 
 import setting_instagram
 import setting_instagram_secret
-from Instagramscraper.items import InstafollowdataItem
+import Instagramscraper.items
 
 
 class InstafollowdataSpider(scrapy.Spider):
+    """
+    класс парсинга данных с необходимыми методами.
+    Выход объект item
+    """
     name = 'instafollowdata'
     allowed_domains = ['instagram.com']
     start_urls = ['http://instagram.com/']
@@ -26,9 +33,9 @@ class InstafollowdataSpider(scrapy.Spider):
 
     friendship_link = setting_instagram.FRIENDSHIP_LINK
     followers_link = setting_instagram.FOLLOWERS_LINK
-    followings_link = setting_instagram.FOLLOWINGS_LINK
+    following_link = setting_instagram.FOLLOWING_LINK
 
-    def parse(self, response: HtmlResponse):
+    def parse(self, response: HtmlResponse, **kwargs):
         # логинимся
         csrf = self.fetch_csrf_token(response.text)
         yield scrapy.FormRequest(
@@ -69,6 +76,29 @@ class InstafollowdataSpider(scrapy.Spider):
         match = re.search('\"profilePage_\\w+\"', text).group()
         return match.replace(r'profilePage_', '').replace(r'"', '')
 
+
+    @staticmethod
+    def create_item(json_data, username, cursor):
+        """
+        Функция создания объекта item
+        :param json_data: данные в json формате из запроса response
+        :param username: данные пользователя страницы,
+        которого смотрит follower или following
+        :param cursor: флаг для базы данных к чему относятся данные: follower или following
+        :return: объект item
+        """
+        lots_of_data = json_data.get('users')
+        for data in lots_of_data:
+            item = Instagramscraper.items.InstafollowdataItem(
+                user_id=data.get('pk'),
+                username=data.get('username'),
+                follower_cursor=username if cursor else '',
+                following_cursor='' if cursor else username,
+                profile_pic=[data.get('profile_pic_url')],
+                post_data=data,
+            )
+            yield item
+
     def parse_inst_user(self, response: HtmlResponse, username):
         print()
         '''Заходим на страницу пользователей и вызываем фолловеров'''
@@ -79,7 +109,8 @@ class InstafollowdataSpider(scrapy.Spider):
             'search_surface': 'follow_list_page',
             'max_id': 0,
         }
-        url_followers = f'{self.friendship_link}{user_id}{self.followers_link}?{urlencode(variables)}'
+        url_followers = f'{self.friendship_link}{user_id}{self.followers_link}' \
+                        f'?{urlencode(variables)}'
 
         yield response.follow(
             url=url_followers,
@@ -94,13 +125,33 @@ class InstafollowdataSpider(scrapy.Spider):
             },
         )
 
+        variables_following = {
+            'count': self.first_attr,
+            'max_id': 0,
+        }
+        url_following = f'{self.friendship_link}{user_id}{self.following_link}' \
+                        f'?{urlencode(variables_following)}'
+        yield response.follow(
+            url=url_following,
+            callback=self.parse_user_following,
+            cb_kwargs={
+                'username': username,
+                'variables_following': deepcopy(variables_following),
+                'user_id': user_id,
+            },
+            headers={
+                'User-Agent': 'Instagram 155.0.0.37.107',
+            },
+        )
+
     def parse_user_followers(self, response: HtmlResponse, username, user_id, variables):
 
         json_data = response.json()
-        if json_data['next_max_id']\
+        if json_data['next_max_id'] \
                 and variables['max_id'] < int(json_data['next_max_id']) < 30:
             variables['max_id'] = int(json_data['next_max_id'])
-            url_followers = f'{self.friendship_link}{user_id}{self.followers_link}?{urlencode(variables)}'
+            url_followers = f'{self.friendship_link}{user_id}{self.followers_link}' \
+                            f'?{urlencode(variables)}'
             yield response.follow(
                 url=url_followers,
                 callback=self.parse_user_followers,
@@ -114,15 +165,40 @@ class InstafollowdataSpider(scrapy.Spider):
                 },
             )
 
-        followers = json_data.get('users')
-        for follower in followers:
-            item = InstafollowdataItem(
-                user_id=follower.get('pk'),
-                username=follower.get('username'),
-                follower_cursor=username,
-                following_cursor='',
-                profile_pic=[follower.get('profile_pic_url')],
-                post_data=follower,
-            )
-            yield item
+        self.create_item(json_data=json_data, username=username, cursor=True)
 
+        # followers = json_data.get('users')
+        # for follower in followers:
+        #     item = InstafollowdataItem(
+        #         user_id=follower.get('pk'),
+        #         username=follower.get('username'),
+        #         follower_cursor=username,
+        #         following_cursor='',
+        #         profile_pic=[follower.get('profile_pic_url')],
+        #         post_data=follower,
+        #     )
+        #     yield item
+
+    def parse_user_following(self, response: HtmlResponse, username, user_id, variables_following):
+
+        json_data = response.json()
+        if json_data['next_max_id'] \
+                and variables_following['max_id'] < int(json_data['next_max_id']) < 30:
+            variables_following['max_id'] = int(json_data['next_max_id'])
+            url_following = f'{self.friendship_link}{user_id}{self.following_link}' \
+                            f'?{urlencode(variables_following)}'
+
+            yield response.follow(
+                url=url_following,
+                callback=self.parse_user_following,
+                cb_kwargs={
+                    'username': username,
+                    'variables_following': deepcopy(variables_following),
+                    'user_id': user_id,
+                },
+                headers={
+                    'User-Agent': 'Instagram 155.0.0.37.107',
+                },
+            )
+
+        self.create_item(json_data=json_data, username=username, cursor=False)

@@ -15,6 +15,7 @@ class InstagramscraperPipeline:
     def process_item(self, item, spider):
         return item
 
+
 class InstafollowdataPipeline:
     def __init__(self):
         # не забывай включить процесс mongod.service
@@ -27,6 +28,7 @@ class InstafollowdataPipeline:
         collection = self.mongobase[spider.name]
         collection.insert_one(item)
         return item
+
 
 class InstafollowdataImagesPipeline(ImagesPipeline):
     def get_media_requests(self, item, info):
